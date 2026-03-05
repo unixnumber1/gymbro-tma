@@ -89,13 +89,11 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     position: 'absolute',
     inset: 10,
-    borderRadius: '50%',
     border: 'none',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
     transition: 'background 0.4s ease',
