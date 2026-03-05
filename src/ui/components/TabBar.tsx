@@ -1,4 +1,4 @@
-export type TabId = 'upgrades' | 'appearance' | 'prestige' | 'goals' | 'leaderboard' | 'stats'
+export type TabId = 'upgrades' | 'appearance' | 'prestige' | 'achievements' | 'shop' | 'leaderboard' | 'stats'
 
 interface Tab {
   id: TabId
@@ -7,22 +7,21 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'upgrades',    label: 'Апгрейды', emoji: '⬆️' },
-  { id: 'appearance',  label: 'Внешка',   emoji: '💅' },
-  { id: 'prestige',    label: 'Престиж',  emoji: '⭐' },
-  { id: 'goals',       label: 'Цели',     emoji: '🎯' },
-  { id: 'leaderboard', label: 'Топ',      emoji: '🏆' },
-  { id: 'stats',       label: 'Стата',    emoji: '📊' },
+  { id: 'upgrades',      label: 'Апгрейд', emoji: '⬆️' },
+  { id: 'appearance',   label: 'Внешка',   emoji: '💅' },
+  { id: 'prestige',     label: 'Престиж',  emoji: '⭐' },
+  { id: 'achievements', label: 'Ачивки',   emoji: '🏆' },
+  { id: 'shop',         label: 'Магазин',  emoji: '💎' },
+  { id: 'leaderboard',  label: 'Топ',      emoji: '👑' },
+  { id: 'stats',        label: 'Стата',    emoji: '📊' },
 ]
 
 interface Props {
   active: TabId
   onChange: (tab: TabId) => void
-  completedGoals?: number
-  totalGoals?: number
 }
 
-export function TabBar({ active, onChange, completedGoals = 0, totalGoals = 0 }: Props) {
+export function TabBar({ active, onChange }: Props) {
   return (
     <nav style={styles.nav}>
       {TABS.map(tab => (
@@ -37,9 +36,6 @@ export function TabBar({ active, onChange, completedGoals = 0, totalGoals = 0 }:
         >
           <span style={styles.tabEmoji}>{tab.emoji}</span>
           <span style={styles.tabLabel}>{tab.label}</span>
-          {tab.id === 'goals' && completedGoals < totalGoals && (
-            <span style={styles.badge}>{completedGoals}/{totalGoals}</span>
-          )}
         </button>
       ))}
     </nav>
@@ -55,7 +51,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tab: {
     flex: 1,
-    padding: '7px 2px',
+    padding: '6px 1px',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -69,23 +65,12 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
   },
   tabEmoji: {
-    fontSize: '1.1rem',
+    fontSize: '1.0rem',
     lineHeight: 1,
   },
   tabLabel: {
-    fontSize: '0.58rem',
+    fontSize: '0.52rem',
     fontWeight: 600,
-    letterSpacing: '0.02em',
-  },
-  badge: {
-    position: 'absolute',
-    top: 2,
-    right: 6,
-    background: '#e74c3c',
-    color: '#fff',
-    fontSize: '0.5rem',
-    fontWeight: 800,
-    padding: '1px 4px',
-    borderRadius: 6,
+    letterSpacing: '0.01em',
   },
 }

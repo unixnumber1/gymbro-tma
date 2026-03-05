@@ -62,11 +62,18 @@ export function loadSave(): GameState {
       // Всегда перезаписываем служебные поля
       version: SAVE_VERSION,
       autoClickers: mergedAC,
-      // Если в старом сейве completedGoals не было — ставим []
       completedGoals: Array.isArray(parsed.completedGoals) ? parsed.completedGoals : [],
-      // Гарантируем null вместо строки 'null' или старого формата
       genetics: (parsed.genetics && typeof parsed.genetics === 'object') ? parsed.genetics : null,
       activeBoost: (parsed.activeBoost && typeof parsed.activeBoost === 'object') ? parsed.activeBoost : null,
+      // Новые поля с дефолтами для старых сейвов
+      diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
+      completedAchievements: (parsed.completedAchievements && typeof parsed.completedAchievements === 'object' && !Array.isArray(parsed.completedAchievements)) ? parsed.completedAchievements : {},
+      shopClickBoostEndTime: typeof parsed.shopClickBoostEndTime === 'number' ? parsed.shopClickBoostEndTime : 0,
+      shopPassiveBoostEndTime: typeof parsed.shopPassiveBoostEndTime === 'number' ? parsed.shopPassiveBoostEndTime : 0,
+      permanentClickBonus: typeof parsed.permanentClickBonus === 'number' ? parsed.permanentClickBonus : 0,
+      permanentPassiveBonus: typeof parsed.permanentPassiveBonus === 'number' ? parsed.permanentPassiveBonus : 0,
+      ownedSkins: Array.isArray(parsed.ownedSkins) ? parsed.ownedSkins : [],
+      activeSkin: typeof parsed.activeSkin === 'string' ? parsed.activeSkin : null,
     }
 
     console.log('[Save] ✅ State restored successfully')

@@ -17,8 +17,11 @@ import {
   EVENT_MIN_INTERVAL_MS,
   EVENT_EXTRA_RANGE_MS,
   BOOST_DURATION_MS,
+  DIAMONDS_PER_PRESTIGE,
 } from '../config/gameConfig'
 import { GOALS } from '../systems/goalsSystem'
+import { checkAchievements } from '../systems/achievementsSystem'
+import { SHOP_ITEMS, BOOST_DURATION_SHOP_MS } from '../systems/shopSystem'
 
 // ── Action types ──────────────────────────────────────────
 
@@ -31,6 +34,9 @@ export type GameAction =
   | { type: 'ADD_OFFLINE_COINS'; coins: number }
   | { type: 'SET_GENETICS'; genetics: GeneticsStats }
   | { type: 'LOAD_SAVE'; state: GameState }
+  | { type: 'BUY_SHOP_ITEM'; itemId: string }
+  | { type: 'BUY_GENETICS_REROLL'; genetics: GeneticsStats }
+  | { type: 'ACTIVATE_SKIN'; skinId: string }
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -39,6 +45,7 @@ function goalsMult(state: GameState): number {
 }
 
 function recalcDerived(state: GameState): GameState {
+  const now = Date.now()
   const gm = goalsMult(state)
   return {
     ...state,
@@ -48,6 +55,8 @@ function recalcDerived(state: GameState): GameState {
       state.pumpActive,
       state.genetics,
       gm,
+      state.shopClickBoostEndTime > now,
+      state.permanentClickBonus,
     ),
     coinsPerSecond: calcTotalCoinsPerSecond(
       state.autoClickers,
@@ -55,6 +64,8 @@ function recalcDerived(state: GameState): GameState {
       state.appearanceStage,
       gm,
       state.prestigePoints,
+      state.shopPassiveBoostEndTime > now,
+      state.permanentPassiveBonus,
     ),
   }
 }
@@ -67,13 +78,21 @@ function checkGoals(state: GameState): GameState {
   return recalcDerived({ ...state, completedGoals: [...state.completedGoals, ...newGoals] })
 }
 
+function checkAndAwardAchievements(state: GameState): GameState {
+  const gained = checkAchievements(state, state.completedAchievements)
+  if (gained.length === 0) return state
+  const totalDiamonds = gained.reduce((sum, a) => sum + a.diamonds, 0)
+  const newCompleted = { ...state.completedAchievements }
+  for (const a of gained) newCompleted[a.id] = a.level
+  return { ...state, diamonds: state.diamonds + totalDiamonds, completedAchievements: newCompleted }
+}
+
 // ── Reducer ───────────────────────────────────────────────
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
 
     case 'CLICK': {
-      // Буст ×2 к клику применяется здесь
       const boostMult = (state.activeBoost && Date.now() < state.activeBoost.endTime) ? 2 : 1
       const earned = state.currentClickIncome * boostMult
       return {
@@ -123,9 +142,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         nextEventTime = now + EVENT_MIN_INTERVAL_MS + Math.random() * EVENT_EXTRA_RANGE_MS
         needsRecalc = true
       }
-      // Буст истёк
       if (activeBoost && now >= activeBoost.endTime) {
         activeBoost = null
+        needsRecalc = true
+      }
+
+      // ── Магазин — истечение бустов ────────────────────────
+      let { shopClickBoostEndTime, shopPassiveBoostEndTime } = state
+      if (shopClickBoostEndTime > 0 && now >= shopClickBoostEndTime) {
+        shopClickBoostEndTime = 0
+        needsRecalc = true
+      }
+      if (shopPassiveBoostEndTime > 0 && now >= shopPassiveBoostEndTime) {
+        shopPassiveBoostEndTime = 0
         needsRecalc = true
       }
 
@@ -141,13 +170,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         pendingClicks: 0,
         activeBoost,
         nextEventTime,
+        shopClickBoostEndTime,
+        shopPassiveBoostEndTime,
       }
 
       const withGoals = checkGoals(next)
       const goalsChanged = withGoals.completedGoals.length !== state.completedGoals.length
 
-      if (needsRecalc || goalsChanged) return recalcDerived(withGoals)
-      return withGoals
+      const fullyDerived = (needsRecalc || goalsChanged) ? recalcDerived(withGoals) : withGoals
+      return checkAndAwardAchievements(fullyDerived)
     }
 
     case 'BUY_AUTO_CLICKER': {
@@ -156,33 +187,33 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const price = calcAutoClickerPrice(action.id, ac.owned, state.genetics, state.appearanceStage)
       if (state.coins < price) return state
 
-      return checkGoals(recalcDerived({
+      return checkAndAwardAchievements(checkGoals(recalcDerived({
         ...state,
         coins: state.coins - price,
         autoClickers: state.autoClickers.map(a =>
           a.id === action.id ? { ...a, owned: a.owned + 1 } : a,
         ),
-      }))
+      })))
     }
 
     case 'BUY_APPEARANCE': {
       const nextStage = state.appearanceStage + 1
       if (nextStage >= STAGE_COUNT) return state
-      const price = getStageCost(nextStage, 1)  // appearance discount handled inside getStageCost via appearanceCostFactor
+      const price = getStageCost(nextStage, 1)
       if (state.coins < price) return state
 
-      return checkGoals(recalcDerived({
+      return checkAndAwardAchievements(checkGoals(recalcDerived({
         ...state,
         coins: state.coins - price,
         appearanceStage: nextStage,
-      }))
+      })))
     }
 
     case 'PRESTIGE': {
       const gained = calcPrestigePointsGain(state.totalCoinsEarned)
       const newGenetics = rollGenetics()
       const fresh = createInitialState()
-      return recalcDerived({
+      return checkAndAwardAchievements(recalcDerived({
         ...fresh,
         genetics: newGenetics,
         prestigePoints: state.prestigePoints + gained,
@@ -191,7 +222,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         totalPlayTime: state.totalPlayTime,
         completedGoals: state.completedGoals,
         nextEventTime: state.nextEventTime,
-      })
+        // Preserve diamonds and shop state across prestige
+        diamonds: state.diamonds + DIAMONDS_PER_PRESTIGE,
+        completedAchievements: state.completedAchievements,
+        permanentClickBonus: state.permanentClickBonus,
+        permanentPassiveBonus: state.permanentPassiveBonus,
+        ownedSkins: state.ownedSkins,
+        activeSkin: state.activeSkin,
+        shopClickBoostEndTime: state.shopClickBoostEndTime,
+        shopPassiveBoostEndTime: state.shopPassiveBoostEndTime,
+      }))
     }
 
     case 'SET_GENETICS': {
@@ -208,6 +248,62 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'LOAD_SAVE': {
       return recalcDerived(action.state)
+    }
+
+    case 'BUY_SHOP_ITEM': {
+      const item = SHOP_ITEMS.find(i => i.id === action.itemId)
+      if (!item) return state
+
+      // Skin already owned → just activate, no cost
+      if (item.type === 'skin' && state.ownedSkins.includes(action.itemId)) {
+        return { ...state, activeSkin: action.itemId }
+      }
+
+      if (state.diamonds < item.cost) return state
+
+      const now = Date.now()
+      let ns = { ...state, diamonds: state.diamonds - item.cost }
+
+      switch (item.type) {
+        case 'boost_click': {
+          const currentEnd = ns.shopClickBoostEndTime > now ? ns.shopClickBoostEndTime : now
+          ns = { ...ns, shopClickBoostEndTime: currentEnd + BOOST_DURATION_SHOP_MS }
+          break
+        }
+        case 'boost_passive': {
+          const currentEnd = ns.shopPassiveBoostEndTime > now ? ns.shopPassiveBoostEndTime : now
+          ns = { ...ns, shopPassiveBoostEndTime: currentEnd + BOOST_DURATION_SHOP_MS }
+          break
+        }
+        case 'perm_click':
+          ns = { ...ns, permanentClickBonus: ns.permanentClickBonus + 0.1 }
+          break
+        case 'perm_passive':
+          ns = { ...ns, permanentPassiveBonus: ns.permanentPassiveBonus + 0.1 }
+          break
+        case 'skin':
+          ns = { ...ns, ownedSkins: [...ns.ownedSkins, action.itemId], activeSkin: action.itemId }
+          break
+        case 'genetics_reroll':
+          // Handled by BUY_GENETICS_REROLL
+          return state
+      }
+
+      return checkAndAwardAchievements(recalcDerived(ns))
+    }
+
+    case 'BUY_GENETICS_REROLL': {
+      if (state.diamonds < 25) return state
+      return checkAndAwardAchievements(recalcDerived({
+        ...state,
+        diamonds: state.diamonds - 25,
+        genetics: action.genetics,
+      }))
+    }
+
+    case 'ACTIVATE_SKIN': {
+      if (!state.ownedSkins.includes(action.skinId)) return state
+      return { ...state, activeSkin: action.skinId }
     }
 
     default:

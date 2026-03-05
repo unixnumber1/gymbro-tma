@@ -13,8 +13,14 @@ export function BalanceBar({ state }: Props) {
     <div style={styles.container}>
       <div style={styles.top}>
         <div style={styles.balance}>
-          <span style={styles.label}>GB Coins</span>
-          <span style={styles.amount}>{formatNumber(state.coins)}</span>
+          <div>
+            <div style={styles.label}>GB Coins</div>
+            <div style={styles.amount}>{formatNumber(state.coins)}</div>
+          </div>
+          <div style={styles.diamonds}>
+            <div style={styles.diamondLabel}>Алмазы</div>
+            <div style={styles.diamondAmount}>💎 {state.diamonds}</div>
+          </div>
         </div>
         {g && (
           <div style={styles.geneticsBadge}>
@@ -42,14 +48,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   top: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 4,
   },
   balance: {
     display: 'flex',
-    alignItems: 'baseline',
-    gap: 8,
+    alignItems: 'flex-end',
+    gap: 16,
   },
   label: {
     color: '#888',
@@ -65,6 +71,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontVariantNumeric: 'tabular-nums',
     lineHeight: 1,
   },
+  diamonds: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    paddingBottom: 2,
+  },
+  diamondLabel: {
+    color: '#888',
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  },
+  diamondAmount: {
+    color: '#7df9ff',
+    fontSize: '1.1rem',
+    fontWeight: 800,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1,
+  },
   geneticsBadge: {
     color: '#aaa',
     fontSize: '0.72rem',
@@ -73,6 +99,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '3px 8px',
     borderRadius: 6,
     border: '1px solid #2a2a4a',
+    flexShrink: 0,
   },
   stats: {
     display: 'flex',

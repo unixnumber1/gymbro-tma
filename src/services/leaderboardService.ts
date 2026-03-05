@@ -54,7 +54,7 @@ export function getTelegramUser(): TGUser {
 
 // ── API ───────────────────────────────────────────────────
 
-export async function upsertScore(totalCoins: number, prestigeCount: number): Promise<void> {
+export async function upsertScore(totalCoins: number, prestigeCount: number, diamonds = 0): Promise<void> {
   const user = getTelegramUser()
   await supabase.from('leaderboard').upsert(
     {
@@ -63,6 +63,7 @@ export async function upsertScore(totalCoins: number, prestigeCount: number): Pr
       first_name: user.first_name,
       total_coins: Math.floor(totalCoins),
       prestige_count: prestigeCount,
+      diamonds,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'telegram_id' },

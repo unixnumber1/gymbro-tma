@@ -48,12 +48,20 @@ export function StatsTab({ state }: Props) {
   const goalsMult      = 1 + state.completedGoals.length * GOALS_BONUS_PER_GOAL
   const goalsBonus     = Math.round(state.completedGoals.length * GOALS_BONUS_PER_GOAL * 100)
   const pumpMult       = getPumpMultiplier(state.pumpActive)
+  const shopClickActive  = state.shopClickBoostEndTime > now
+  const shopPassiveActive = state.shopPassiveBoostEndTime > now
+  const shopClickSecsLeft  = shopClickActive ? Math.max(0, Math.ceil((state.shopClickBoostEndTime - now) / 1000)) : 0
+  const shopPassiveSecsLeft = shopPassiveActive ? Math.max(0, Math.ceil((state.shopPassiveBoostEndTime - now) / 1000)) : 0
+  const permClickPct   = Math.round(state.permanentClickBonus * 100)
+  const permPassivePct = Math.round(state.permanentPassiveBonus * 100)
 
   const totalClickMult = (
-    1 * prestigeMult * genClickMult * appClickMult * goalsMult * pumpMult * (boostActive ? 2 : 1)
+    1 * prestigeMult * genClickMult * appClickMult * goalsMult * pumpMult
+    * (boostActive ? 2 : 1) * (shopClickActive ? 2 : 1) * (1 + state.permanentClickBonus)
   ).toFixed(2)
   const totalPassiveMult = (
     1 * prestigeMult * genPassiveMult * appPassiveMult * goalsMult
+    * (shopPassiveActive ? 2 : 1) * (1 + state.permanentPassiveBonus)
   ).toFixed(2)
 
   const multipliers: MultRow[] = [
@@ -111,6 +119,30 @@ export function StatsTab({ state }: Props) {
       value: `×${pumpMult.toFixed(1)}`,
       highlight: true,
     }] : []),
+    ...(shopClickActive ? [{
+      icon: '⚡',
+      label: `Буст кликов x2 (магазин, ${shopClickSecsLeft}с)`,
+      value: '×2.0',
+      highlight: true,
+    }] : []),
+    ...(shopPassiveActive ? [{
+      icon: '🤖',
+      label: `Буст пассива x2 (магазин, ${shopPassiveSecsLeft}с)`,
+      value: '×2.0',
+      highlight: true,
+    }] : []),
+    ...(permClickPct > 0 ? [{
+      icon: '👊',
+      label: 'Пост. бонус кликов (магазин)',
+      value: `+${permClickPct}%`,
+      highlight: true,
+    }] : []),
+    ...(permPassivePct > 0 ? [{
+      icon: '📈',
+      label: 'Пост. бонус пассива (магазин)',
+      value: `+${permPassivePct}%`,
+      highlight: true,
+    }] : []),
     ...(boostActive ? [{
       icon: '⚡',
       label: `Буст ×2 (${boostSecsLeft}с)`,
@@ -135,6 +167,7 @@ export function StatsTab({ state }: Props) {
 
   const statsRows: [string, string][] = [
     ['Монет сейчас', formatNumber(state.coins)],
+    ['Алмазов', `💎 ${state.diamonds}`],
     ['Всего заработано', formatNumber(state.totalCoinsEarned)],
     ['За клик', formatNumber(state.currentClickIncome)],
     ['GB/сек (авто)', formatNumber(state.coinsPerSecond)],

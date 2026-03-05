@@ -40,12 +40,30 @@ export interface GameState {
   prestigePoints: number
   totalPrestiges: number
 
-  // Цели
+  // Цели (для income bonus — остаётся)
   completedGoals: string[]
+
+  // Достижения
+  completedAchievements: Record<string, number>  // id -> levels completed
+
+  // Алмазы
+  diamonds: number
 
   // Случайный буст
   activeBoost: ActiveBoost | null
   nextEventTime: number  // ms timestamp
+
+  // Магазин — временные бусты
+  shopClickBoostEndTime: number    // 0 = неактивен
+  shopPassiveBoostEndTime: number  // 0 = неактивен
+
+  // Магазин — постоянные бонусы
+  permanentClickBonus: number    // 0.1 за каждую покупку
+  permanentPassiveBonus: number
+
+  // Магазин — скины
+  ownedSkins: string[]
+  activeSkin: string | null
 
   // Статистика
   totalClicks: number
@@ -73,8 +91,16 @@ export function createInitialState(): GameState {
     prestigePoints: 0,
     totalPrestiges: 0,
     completedGoals: [],
+    completedAchievements: {},
+    diamonds: 0,
     activeBoost: null,
     nextEventTime: Date.now() + EVENT_MIN_INTERVAL_MS + Math.random() * EVENT_EXTRA_RANGE_MS,
+    shopClickBoostEndTime: 0,
+    shopPassiveBoostEndTime: 0,
+    permanentClickBonus: 0,
+    permanentPassiveBonus: 0,
+    ownedSkins: [],
+    activeSkin: null,
     totalClicks: 0,
     totalPlayTime: 0,
     lastSaveTime: Date.now(),

@@ -41,6 +41,9 @@ export const PRESTIGE_POINT_MULTIPLIER = 0.05  // каждое очко = +5% к
 // ── ЦЕЛИ ──────────────────────────────────────────────────
 export const GOALS_BONUS_PER_GOAL = 0.10  // +10% ко всему доходу за каждую цель
 
+// ── АЛМАЗЫ ────────────────────────────────────────────────
+export const DIAMONDS_PER_PRESTIGE = 5  // за каждый сброс
+
 // ── СОБЫТИЯ ───────────────────────────────────────────────
 export const EVENT_MIN_INTERVAL_MS = 120_000   // минимум 2 мин между событиями
 export const EVENT_EXTRA_RANGE_MS  = 180_000   // +0-3 мин случайно

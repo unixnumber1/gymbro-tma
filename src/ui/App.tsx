@@ -6,7 +6,6 @@ import { TelegramSDK } from '../telegram/TelegramSDK'
 import { GeneticsStats } from '../systems/geneticsSystem'
 import { getStageCost, STAGE_COUNT } from '../systems/appearanceSystem'
 import { getPumpCooldownFraction } from '../systems/pumpSystem'
-import { GOALS } from '../systems/goalsSystem'
 import { upsertScore } from '../services/leaderboardService'
 import { formatNumber } from './formatNumber'
 
@@ -19,7 +18,8 @@ import { UpgradesTab } from './components/UpgradesTab'
 import { AppearanceTab } from './components/AppearanceTab'
 import { PrestigeTab } from './components/PrestigeTab'
 import { StatsTab } from './components/StatsTab'
-import { GoalsTab } from './components/GoalsTab'
+import { AchievementsTab } from './components/AchievementsTab'
+import { ShopTab } from './components/ShopTab'
 import { LeaderboardTab } from './components/LeaderboardTab'
 import { GeneticsModal } from './components/GeneticsModal'
 import { StageUpModal } from './components/StageUpModal'
@@ -128,10 +128,10 @@ export default function App() {
   // ── Синхронизация лидерборда ─────────────────────────────
   useEffect(() => {
     // Отправляем при старте
-    upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges)
+    upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges, stateRef.current.diamonds)
     // И каждые 30 секунд
     const interval = setInterval(() => {
-      upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges)
+      upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges, stateRef.current.diamonds)
     }, 30_000)
     return () => clearInterval(interval)
   }, [])
@@ -141,7 +141,7 @@ export default function App() {
   useEffect(() => {
     if (state.totalPrestiges > prevPrestigesRef.current) {
       saveImmediate(stateRef.current)
-      upsertScore(state.totalCoinsEarned, state.totalPrestiges)
+      upsertScore(state.totalCoinsEarned, state.totalPrestiges, state.diamonds)
     }
     prevPrestigesRef.current = state.totalPrestiges
   }, [state.totalPrestiges, state.totalCoinsEarned])
@@ -249,16 +249,15 @@ export default function App() {
         {activeTab === 'upgrades'   && <UpgradesTab   state={state} dispatch={dispatch} />}
         {activeTab === 'appearance' && <AppearanceTab state={state} dispatch={dispatch} />}
         {activeTab === 'prestige'   && <PrestigeTab   state={state} dispatch={dispatch} />}
-        {activeTab === 'goals'       && <GoalsTab       state={state} />}
-        {activeTab === 'leaderboard' && <LeaderboardTab />}
+        {activeTab === 'achievements' && <AchievementsTab state={state} />}
+        {activeTab === 'shop'         && <ShopTab         state={state} dispatch={dispatch} />}
+        {activeTab === 'leaderboard'  && <LeaderboardTab />}
         {activeTab === 'stats'       && <StatsTab       state={state} />}
       </div>
 
       <TabBar
         active={activeTab}
         onChange={setActiveTab}
-        completedGoals={state.completedGoals.length}
-        totalGoals={GOALS.length}
       />
 
       {/* Модал генетики (первый запуск) */}
