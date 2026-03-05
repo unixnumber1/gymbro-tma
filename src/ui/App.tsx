@@ -105,8 +105,14 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [])
 
-  // ── Автосейв ────────────────────────────────────────────
+  // ── Автосейв при каждом изменении (дебаунс 3с) ──────────
   useEffect(() => { scheduleSave(state) }, [state])
+
+  // ── Автосейв каждые 10 секунд ────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => saveImmediate(stateRef.current), 10_000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── Детект смены стадии → StageUp modal ─────────────────
   useEffect(() => {
