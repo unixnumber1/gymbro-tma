@@ -209,6 +209,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 14px',
     overflowY: 'auto',
     flex: 1,
+    minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
