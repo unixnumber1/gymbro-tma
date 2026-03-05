@@ -230,6 +230,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 7,
+    flexShrink: 0,
   },
   pumpMeterVis: {
     height: 7,
@@ -244,6 +245,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #1a1a3e',
     borderRadius: 11,
     overflow: 'hidden',
+    flexShrink: 0,
   },
   multRow: {
     display: 'flex',
@@ -275,6 +277,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 11,
     overflow: 'hidden',
     marginBottom: 8,
+    flexShrink: 0,
   },
   row: {
     display: 'flex',
