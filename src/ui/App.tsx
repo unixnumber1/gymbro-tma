@@ -7,6 +7,7 @@ import { GeneticsStats } from '../systems/geneticsSystem'
 import { getStageCost, STAGE_COUNT } from '../systems/appearanceSystem'
 import { getPumpCooldownFraction } from '../systems/pumpSystem'
 import { GOALS } from '../systems/goalsSystem'
+import { upsertScore } from '../services/leaderboardService'
 import { formatNumber } from './formatNumber'
 
 import { BalanceBar } from './components/BalanceBar'
@@ -19,6 +20,7 @@ import { AppearanceTab } from './components/AppearanceTab'
 import { PrestigeTab } from './components/PrestigeTab'
 import { StatsTab } from './components/StatsTab'
 import { GoalsTab } from './components/GoalsTab'
+import { LeaderboardTab } from './components/LeaderboardTab'
 import { GeneticsModal } from './components/GeneticsModal'
 import { StageUpModal } from './components/StageUpModal'
 
@@ -123,6 +125,26 @@ export default function App() {
     return () => clearInterval(interval)
   }, [])
 
+  // ── Синхронизация лидерборда ─────────────────────────────
+  useEffect(() => {
+    // Отправляем при старте
+    upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges)
+    // И каждые 30 секунд
+    const interval = setInterval(() => {
+      upsertScore(stateRef.current.totalCoinsEarned, stateRef.current.totalPrestiges)
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // ── При престиже — сразу отправляем в лидерборд ──────────
+  const prevPrestigesRef = useRef(state.totalPrestiges)
+  useEffect(() => {
+    if (state.totalPrestiges > prevPrestigesRef.current) {
+      upsertScore(state.totalCoinsEarned, state.totalPrestiges)
+    }
+    prevPrestigesRef.current = state.totalPrestiges
+  }, [state.totalPrestiges, state.totalCoinsEarned])
+
   // ── Детект смены стадии → StageUp modal ─────────────────
   useEffect(() => {
     if (state.appearanceStage > prevStageRef.current) {
@@ -225,8 +247,9 @@ export default function App() {
         {activeTab === 'upgrades'   && <UpgradesTab   state={state} dispatch={dispatch} />}
         {activeTab === 'appearance' && <AppearanceTab state={state} dispatch={dispatch} />}
         {activeTab === 'prestige'   && <PrestigeTab   state={state} dispatch={dispatch} />}
-        {activeTab === 'goals'      && <GoalsTab      state={state} />}
-        {activeTab === 'stats'      && <StatsTab      state={state} />}
+        {activeTab === 'goals'       && <GoalsTab       state={state} />}
+        {activeTab === 'leaderboard' && <LeaderboardTab />}
+        {activeTab === 'stats'       && <StatsTab       state={state} />}
       </div>
 
       <TabBar

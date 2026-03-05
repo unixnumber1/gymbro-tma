@@ -1,4 +1,4 @@
-export type TabId = 'upgrades' | 'appearance' | 'prestige' | 'goals' | 'stats'
+export type TabId = 'upgrades' | 'appearance' | 'prestige' | 'goals' | 'leaderboard' | 'stats'
 
 interface Tab {
   id: TabId
@@ -7,11 +7,12 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'upgrades',   label: 'Апгрейды', emoji: '⬆️' },
-  { id: 'appearance', label: 'Внешка',   emoji: '💅' },
-  { id: 'prestige',   label: 'Престиж',  emoji: '⭐' },
-  { id: 'goals',      label: 'Цели',     emoji: '🎯' },
-  { id: 'stats',      label: 'Стата',    emoji: '📊' },
+  { id: 'upgrades',    label: 'Апгрейды', emoji: '⬆️' },
+  { id: 'appearance',  label: 'Внешка',   emoji: '💅' },
+  { id: 'prestige',    label: 'Престиж',  emoji: '⭐' },
+  { id: 'goals',       label: 'Цели',     emoji: '🎯' },
+  { id: 'leaderboard', label: 'Топ',      emoji: '🏆' },
+  { id: 'stats',       label: 'Стата',    emoji: '📊' },
 ]
 
 interface Props {
