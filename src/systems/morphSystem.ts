@@ -68,8 +68,6 @@ function lerpParams(
 
 // ── Вычисляемые эффекты (пороги на стадиях) ───────────────────
 function computeEffects(params: CharacterParams, stage: number): CharacterParams {
-  const t = stage / (STAGE_COUNT - 1)
-
   // Вены: появляются с stage 11, усиливаются
   const veinOpacity = stage >= 11
     ? Math.min(1, (stage - 11) / 14)
