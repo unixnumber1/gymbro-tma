@@ -1,4 +1,4 @@
-import { AUTO_CLICKERS_CONFIG, PRICE_GROWTH_FACTOR } from '../config/gameConfig'
+import { AUTO_CLICKERS_CONFIG, PRICE_GROWTH_FACTOR, PRESTIGE_POINT_MULTIPLIER } from '../config/gameConfig'
 import { AutoClicker } from '../core/GameState'
 import { GeneticsStats, getUpgradeCostFactor } from '../systems/geneticsSystem'
 import { getAppearancePassiveMult, getAppearanceCostFactor } from '../systems/appearanceSystem'
@@ -17,17 +17,21 @@ export function calcAutoClickerPrice(
 }
 
 // Суммарный пассивный доход в секунду
+// Включает: генетика, внешка, престиж, бонус целей
 export function calcTotalCoinsPerSecond(
   autoClickers: AutoClicker[],
   genetics: GeneticsStats | null,
   appearanceStage: number,
-  goalsMult: number,   // e.g. 1.2 for 2 completed goals
+  goalsMult: number,
+  prestigePoints: number,
 ): number {
   const passiveMult    = genetics ? genetics.passiveMult : 1.0
   const appearanceMult = getAppearancePassiveMult(appearanceStage)
-  return autoClickers.reduce((total, ac) => {
+  const prestigeMult   = 1 + prestigePoints * PRESTIGE_POINT_MULTIPLIER
+  const baseTotal = autoClickers.reduce((total, ac) => {
     const cfg = AUTO_CLICKERS_CONFIG.find(c => c.id === ac.id)
     if (!cfg) return total
-    return total + cfg.incomePerSecond * ac.owned * passiveMult * appearanceMult * goalsMult
+    return total + cfg.incomePerSecond * ac.owned
   }, 0)
+  return baseTotal * passiveMult * appearanceMult * prestigeMult * goalsMult
 }

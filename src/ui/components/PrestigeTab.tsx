@@ -57,11 +57,7 @@ export function PrestigeTab({ state, dispatch }: Props) {
           <span style={styles.infoValue}>⭐ {state.prestigePoints}</span>
         </div>
         <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>Бонус к клику</span>
-          <span style={styles.infoValue}>×{currentMult}</span>
-        </div>
-        <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>Бонус к пассиву</span>
+          <span style={styles.infoLabel}>Бонус к кликам и пассиву</span>
           <span style={styles.infoValue}>×{currentMult}</span>
         </div>
         <div style={styles.infoRow}>

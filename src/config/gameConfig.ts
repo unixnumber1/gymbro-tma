@@ -5,7 +5,7 @@
 export const TICK_INTERVAL_MS = 100        // 10 тиков/сек
 export const SAVE_DEBOUNCE_MS = 3000
 export const SAVE_KEY = 'gymbro_save_v2'
-export const SAVE_VERSION = 3              // bump → сброс старых сейвов
+export const SAVE_VERSION = 4              // bump → сброс старых сейвов
 
 export const MAX_OFFLINE_SECONDS = 3 * 60 * 60  // 3 часа
 
@@ -35,8 +35,8 @@ export const PRICE_GROWTH_FACTOR = 1.15
 
 // ── ПРЕСТИЖ ───────────────────────────────────────────────
 export const PRESTIGE_MIN_COINS_EARNED = 500_000
-export const PRESTIGE_DIVISOR = 5_000_000
-export const PRESTIGE_POINT_MULTIPLIER = 0.02
+export const PRESTIGE_DIVISOR = 1_000          // floor(sqrt(total / 1000))
+export const PRESTIGE_POINT_MULTIPLIER = 0.05  // каждое очко = +5% к клику и пассиву
 
 // ── ЦЕЛИ ──────────────────────────────────────────────────
 export const GOALS_BONUS_PER_GOAL = 0.10  // +10% ко всему доходу за каждую цель

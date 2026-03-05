@@ -54,6 +54,7 @@ function recalcDerived(state: GameState): GameState {
       state.genetics,
       state.appearanceStage,
       gm,
+      state.prestigePoints,
     ),
   }
 }
