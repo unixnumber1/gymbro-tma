@@ -149,11 +149,6 @@ export default function App() {
   // Pump кулдаун
   const cooldownFraction = getPumpCooldownFraction(state.pumpCooldownEndTime)
 
-  // Фон зоны персонажа меняется в pump mode
-  const charZoneBg = state.pumpActive
-    ? 'radial-gradient(ellipse at 50% 60%, #2a0800 0%, #0f0f0f 70%)'
-    : 'radial-gradient(ellipse at 50% 60%, #0d1b35 0%, #0f0f0f 70%)'
-
   return (
     <div
       style={{
@@ -167,7 +162,7 @@ export default function App() {
       <BalanceBar state={state} />
 
       {/* Зона персонажа */}
-      <div style={{ ...styles.characterZone, background: charZoneBg }}>
+      <div style={styles.characterZone}>
         <FloatingText items={floatItems} />
         <Character
           stage={state.appearanceStage}

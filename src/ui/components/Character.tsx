@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
 import { CharacterSVG } from './CharacterSVG'
-import { ProgressRing } from './ProgressRing'
 
 interface Props {
   stage: number
@@ -11,7 +10,6 @@ interface Props {
 
 export function Character({ stage, pumpActive, progressFraction, onTap }: Props) {
   const [isPressed, setIsPressed] = useState(false)
-  // Предотвращаем зависание isPressed если pointer ушёл за пределы кнопки
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
@@ -25,47 +23,49 @@ export function Character({ stage, pumpActive, progressFraction, onTap }: Props)
     setIsPressed(false)
   }, [])
 
+  const barColor = pumpActive
+    ? 'linear-gradient(to top, #ff4400, #ff8800)'
+    : 'linear-gradient(to top, #FFD700, #ffe066)'
+
+  const fillHeight = `${Math.max(0, Math.min(1, progressFraction)) * 100}%`
+
   return (
     <div style={styles.wrapper}>
-      {/* Прогресс-кольцо */}
-      <div style={styles.ringWrapper}>
-        <ProgressRing
-          fraction={progressFraction}
-          size={196}
-          strokeWidth={4}
-          pumpActive={pumpActive}
-        />
-
-        {/* Кнопка-персонаж */}
-        <button
+      <button
+        style={styles.button}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        aria-label="Тапни чтобы качаться"
+      >
+        <div
           style={{
-            ...styles.button,
-            background: pumpActive
-              ? 'radial-gradient(circle at 40% 35%, #3a1000 0%, #1a0500 70%)'
-              : 'radial-gradient(circle at 40% 35%, #1a2e50 0%, #0a1020 70%)',
+            ...styles.breathWrapper,
+            animationDuration: pumpActive ? '1.2s' : '3.5s',
           }}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          aria-label="Тапни чтобы качаться"
         >
-          {/* Idle breathing wrapper — трансформирует всё тело */}
-          <div
-            style={{
-              ...styles.breathWrapper,
-              animationDuration: pumpActive ? '1.2s' : '3.5s',
-            }}
-          >
-            {/* Плечи двигаются чуть быстрее дыхания — эффект micro-movement */}
-            <div style={styles.shoulderBobWrapper}>
-              <CharacterSVG
-                stage={stage}
-                pumpActive={pumpActive}
-                isPressed={isPressed}
-              />
-            </div>
+          <div style={styles.shoulderBobWrapper}>
+            <CharacterSVG
+              stage={stage}
+              pumpActive={pumpActive}
+              isPressed={isPressed}
+            />
           </div>
-        </button>
+        </div>
+      </button>
+
+      {/* Вертикальная шкала прокачки справа */}
+      <div style={styles.barTrack}>
+        <div
+          style={{
+            ...styles.barFill,
+            height: fillHeight,
+            background: barColor,
+            boxShadow: pumpActive
+              ? '0 0 10px rgba(255,68,0,0.7)'
+              : '0 0 6px rgba(255,215,0,0.35)',
+          }}
+        />
       </div>
     </div>
   )
@@ -74,29 +74,20 @@ export function Character({ stage, pumpActive, progressFraction, onTap }: Props)
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     userSelect: 'none',
-  },
-  ringWrapper: {
-    position: 'relative',
-    width: 196,
-    height: 196,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
   button: {
-    position: 'absolute',
-    inset: 10,
+    background: 'transparent',
     border: 'none',
     cursor: 'pointer',
+    padding: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
-    transition: 'background 0.4s ease',
   },
   breathWrapper: {
     animation: 'breathe 3.5s ease-in-out infinite',
@@ -108,5 +99,22 @@ const styles: Record<string, React.CSSProperties> = {
   shoulderBobWrapper: {
     animation: 'shoulderBob 3.5s ease-in-out infinite',
     transformOrigin: '50% 30%',
+  },
+  barTrack: {
+    width: 14,
+    height: 160,
+    background: '#1a1a2e',
+    borderRadius: 7,
+    overflow: 'hidden',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 7,
+    transition: 'height 0.25s linear, background 0.3s ease',
   },
 }
