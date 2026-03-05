@@ -1,13 +1,13 @@
 import { formatNumber } from '../formatNumber'
 import { GameState } from '../../core/GameState'
-import { GENETICS_CONFIGS } from '../../systems/geneticsSystem'
+import { getGeneticsLabel } from '../../systems/geneticsSystem'
 
 interface Props {
   state: GameState
 }
 
 export function BalanceBar({ state }: Props) {
-  const genetics = state.genetics ? GENETICS_CONFIGS[state.genetics] : null
+  const g = state.genetics
 
   return (
     <div style={styles.container}>
@@ -16,9 +16,9 @@ export function BalanceBar({ state }: Props) {
           <span style={styles.label}>GB Coins</span>
           <span style={styles.amount}>{formatNumber(state.coins)}</span>
         </div>
-        {genetics && (
+        {g && (
           <div style={styles.geneticsBadge}>
-            {genetics.emoji} {genetics.label}
+            {getGeneticsLabel(g)}
           </div>
         )}
       </div>

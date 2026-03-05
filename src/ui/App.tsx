@@ -3,10 +3,10 @@ import { gameReducer } from '../economy/reducer'
 import { loadSave, scheduleSave, saveImmediate } from '../core/SaveManager'
 import { startGameLoop, calcOfflineCoins } from '../core/GameEngine'
 import { TelegramSDK } from '../telegram/TelegramSDK'
-import { GeneticsType } from '../systems/geneticsSystem'
+import { GeneticsStats } from '../systems/geneticsSystem'
 import { getStageCost, STAGE_COUNT } from '../systems/appearanceSystem'
-import { getGeneticsConfig } from '../systems/geneticsSystem'
 import { getPumpCooldownFraction } from '../systems/pumpSystem'
+import { GOALS } from '../systems/goalsSystem'
 import { formatNumber } from './formatNumber'
 
 import { BalanceBar } from './components/BalanceBar'
@@ -18,6 +18,7 @@ import { UpgradesTab } from './components/UpgradesTab'
 import { AppearanceTab } from './components/AppearanceTab'
 import { PrestigeTab } from './components/PrestigeTab'
 import { StatsTab } from './components/StatsTab'
+import { GoalsTab } from './components/GoalsTab'
 import { GeneticsModal } from './components/GeneticsModal'
 import { StageUpModal } from './components/StageUpModal'
 
@@ -55,6 +56,10 @@ const GLOBAL_CSS = `
     75%  { transform: scale(1.05); }
     100% { transform: scale(1); }
   }
+  @keyframes boostSlideIn {
+    0%   { transform: translateY(-60px); opacity: 0; }
+    100% { transform: translateY(0);     opacity: 1; }
+  }
 `
 
 export default function App() {
@@ -91,6 +96,10 @@ export default function App() {
   const [shaking, setShaking] = useState(false)
   const prevPumpRef = useRef(state.pumpActive)
 
+  // Boost banner
+  const [boostBanner, setBoostBanner] = useState(false)
+  const prevBoostRef = useRef(state.activeBoost)
+
   // ── Telegram ────────────────────────────────────────────
   useEffect(() => { TelegramSDK.init() }, [])
 
@@ -105,7 +114,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [])
 
-  // ── Автосейв при каждом изменении (дебаунс 3с) ──────────
+  // ── Автосейв при каждом изменении ───────────────────────
   useEffect(() => { scheduleSave(state) }, [state])
 
   // ── Автосейв каждые 10 секунд ────────────────────────────
@@ -133,27 +142,45 @@ export default function App() {
     prevPumpRef.current = state.pumpActive
   }, [state.pumpActive])
 
+  // ── Детект нового буста → баннер ────────────────────────
+  useEffect(() => {
+    const hadBoost = prevBoostRef.current !== null
+    const hasBoost = state.activeBoost !== null
+    if (hasBoost && !hadBoost) {
+      setBoostBanner(true)
+      TelegramSDK.hapticSuccess()
+      setTimeout(() => setBoostBanner(false), 4000)
+    }
+    prevBoostRef.current = state.activeBoost
+  }, [state.activeBoost])
+
   // ── Тап по персонажу ────────────────────────────────────
   const handleTap = useCallback((x: number, y: number) => {
     dispatch({ type: 'CLICK' })
     TelegramSDK.hapticLight()
-    addFloat(`+${formatNumber(stateRef.current.currentClickIncome)} GBC`, x, y - 30)
+    const boostMult = stateRef.current.activeBoost && Date.now() < stateRef.current.activeBoost.endTime ? 2 : 1
+    const earned = stateRef.current.currentClickIncome * boostMult
+    addFloat(`+${formatNumber(earned)} GBC`, x, y - 30)
   }, [addFloat])
 
-  // ── Генетика ─────────────────────────────────────────────
-  const handleSelectGenetics = useCallback((type: GeneticsType) => {
-    dispatch({ type: 'SET_GENETICS', genetics: type })
+  // ── Генетика (первый запуск) ─────────────────────────────
+  const handleSelectGenetics = useCallback((g: GeneticsStats) => {
+    dispatch({ type: 'SET_GENETICS', genetics: g })
   }, [])
 
   // ── Прогресс до следующей стадии ────────────────────────
   const nextStage = state.appearanceStage + 1
   const isMaxed = nextStage >= STAGE_COUNT
-  const costMult = state.genetics ? getGeneticsConfig(state.genetics).stageCostMult : 1
-  const nextStageCost = isMaxed ? 1 : getStageCost(nextStage, costMult)
+  const nextStageCost = isMaxed ? 1 : getStageCost(nextStage, 1)
   const progressFraction = isMaxed ? 1 : Math.min(1, state.coins / nextStageCost)
 
   // Pump кулдаун
   const cooldownFraction = getPumpCooldownFraction(state.pumpCooldownEndTime)
+
+  // Оставшееся время буста
+  const boostSecsLeft = state.activeBoost
+    ? Math.max(0, Math.ceil((state.activeBoost.endTime - Date.now()) / 1000))
+    : 0
 
   return (
     <div
@@ -164,6 +191,16 @@ export default function App() {
     >
       {/* Оверлей красноватого тона при pump */}
       {state.pumpActive && <div style={styles.pumpOverlay} />}
+
+      {/* Boost баннер */}
+      {(boostBanner || boostSecsLeft > 0) && (
+        <div style={{
+          ...styles.boostBanner,
+          animation: boostBanner ? 'boostSlideIn 0.3s ease' : 'none',
+        }}>
+          🔥 Буст ×2 к клику! {boostSecsLeft > 0 ? `${boostSecsLeft}с` : ''}
+        </div>
+      )}
 
       <BalanceBar state={state} />
 
@@ -188,14 +225,20 @@ export default function App() {
         {activeTab === 'upgrades'   && <UpgradesTab   state={state} dispatch={dispatch} />}
         {activeTab === 'appearance' && <AppearanceTab state={state} dispatch={dispatch} />}
         {activeTab === 'prestige'   && <PrestigeTab   state={state} dispatch={dispatch} />}
+        {activeTab === 'goals'      && <GoalsTab      state={state} />}
         {activeTab === 'stats'      && <StatsTab      state={state} />}
       </div>
 
-      <TabBar active={activeTab} onChange={setActiveTab} />
+      <TabBar
+        active={activeTab}
+        onChange={setActiveTab}
+        completedGoals={state.completedGoals.length}
+        totalGoals={GOALS.length}
+      />
 
       {/* Модал генетики (первый запуск) */}
       {state.genetics === null && (
-        <GeneticsModal onSelect={handleSelectGenetics} />
+        <GeneticsModal onConfirm={handleSelectGenetics} />
       )}
 
       {/* Модал смены стадии */}
@@ -229,6 +272,22 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 1,
     animation: 'pumpPulse 0.5s ease-in-out infinite alternate',
   },
+  boostBanner: {
+    position: 'absolute',
+    top: 52,
+    left: 16,
+    right: 16,
+    background: 'linear-gradient(135deg, #7a2000, #cc4400)',
+    border: '1px solid #ff6600',
+    borderRadius: 10,
+    color: '#fff',
+    fontWeight: 800,
+    fontSize: '0.9rem',
+    textAlign: 'center',
+    padding: '10px 16px',
+    zIndex: 50,
+    pointerEvents: 'none',
+  },
   characterZone: {
     position: 'relative',
     display: 'flex',
@@ -238,7 +297,6 @@ const styles: Record<string, React.CSSProperties> = {
     flex: '0 0 240px',
     gap: 4,
     borderBottom: '1px solid #1a1a2e',
-    transition: 'background 0.5s ease',
   },
   tabContent: {
     flex: 1,

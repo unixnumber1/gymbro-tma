@@ -1,6 +1,6 @@
 import { GameState } from '../../core/GameState'
-import { GENETICS_CONFIGS } from '../../systems/geneticsSystem'
-import { STAGE_NAMES, getStageTier, TIER_NAMES } from '../../systems/appearanceSystem'
+import { getGeneticsLabel } from '../../systems/geneticsSystem'
+import { STAGE_NAMES, getStageTier, TIER_NAMES, getAppearanceClickMult } from '../../systems/appearanceSystem'
 import { formatNumber } from '../formatNumber'
 import { PRESTIGE_POINT_MULTIPLIER } from '../../config/gameConfig'
 
@@ -18,9 +18,11 @@ function formatTime(seconds: number): string {
 }
 
 export function StatsTab({ state }: Props) {
-  const genetics = state.genetics ? GENETICS_CONFIGS[state.genetics] : null
+  const g = state.genetics
   const tier = getStageTier(state.appearanceStage)
   const prestigeMult = (1 + state.prestigePoints * PRESTIGE_POINT_MULTIPLIER).toFixed(2)
+  const boostActive = state.activeBoost && Date.now() < state.activeBoost.endTime
+  const goalsBonus = state.completedGoals.length * 10
 
   const rows: [string, string][] = [
     ['Монет сейчас', formatNumber(state.coins)],
@@ -30,11 +32,16 @@ export function StatsTab({ state }: Props) {
     ['Всего кликов', formatNumber(state.totalClicks)],
     ['Стадия тела', `${state.appearanceStage + 1}/30 (${STAGE_NAMES[state.appearanceStage]})`],
     ['Тир', TIER_NAMES[tier]],
-    ['Мультипликатор клика', `×${Math.pow(1.15, state.appearanceStage).toFixed(2)}`],
-    ['Генетика', genetics ? `${genetics.emoji} ${genetics.label}` : '—'],
+    ['Клик-множитель', `×${getAppearanceClickMult(state.appearanceStage).toFixed(2)}`],
+    ['Генетика', g ? getGeneticsLabel(g) : '—'],
+    ['Ген. клик', g ? `×${g.clickMult.toFixed(1)}` : '—'],
+    ['Ген. пассив', g ? `×${g.passiveMult.toFixed(1)}` : '—'],
+    ['Ген. скидка', g ? `×${g.upgradeDiscount.toFixed(1)}` : '—'],
     ['Очки престижа', String(state.prestigePoints)],
     ['Престиж-бонус', `×${prestigeMult}`],
     ['Всего престижей', String(state.totalPrestiges)],
+    ['Бонус целей', `+${goalsBonus}%`],
+    ['Буст ×2', boostActive ? '🔥 Активен!' : 'Неактивен'],
     ['Время в игре', formatTime(state.totalPlayTime)],
   ]
 
@@ -117,17 +124,17 @@ const styles: Record<string, React.CSSProperties> = {
   row: {
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '9px 14px',
+    padding: '8px 14px',
     borderBottom: '1px solid #111228',
   },
   label: {
     color: '#888',
-    fontSize: '0.82rem',
+    fontSize: '0.8rem',
   },
   value: {
     color: '#eee',
     fontWeight: 600,
-    fontSize: '0.82rem',
+    fontSize: '0.8rem',
     fontVariantNumeric: 'tabular-nums',
     textAlign: 'right',
     maxWidth: '55%',

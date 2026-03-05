@@ -104,7 +104,22 @@ export function getStageCost(stage: number, costMult: number = 1): number {
   return Math.ceil(BASE_STAGE_COST * Math.pow(STAGE_COST_FACTOR, stage) * costMult)
 }
 
-// Мультипликатор клика от внешности: 1.15^stage
+// Бонус к монетам за клик от внешности (аксессуары): 1.08^stage
+export function getAppearanceClickMult(stage: number): number {
+  return Math.pow(1.08, stage)
+}
+
+// Бонус к пассивному доходу (причёска): 1.04^stage
+export function getAppearancePassiveMult(stage: number): number {
+  return Math.pow(1.04, stage)
+}
+
+// Скидка на апгрейды (одежда): от 0% до 40% (cost × factor)
+export function getAppearanceCostFactor(stage: number): number {
+  return Math.max(0.60, 1 - stage * 0.0138)
+}
+
+// @deprecated — используй getAppearanceClickMult
 export function getAppearanceMultiplier(stage: number): number {
-  return Math.pow(1.15, stage)
+  return getAppearanceClickMult(stage)
 }

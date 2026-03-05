@@ -1,7 +1,9 @@
 import { GameState } from '../../core/GameState'
 import { GameAction } from '../../economy/reducer'
-import { STAGE_COUNT, STAGE_NAMES, TIER_NAMES, getStageTier, getStageCost } from '../../systems/appearanceSystem'
-import { getGeneticsConfig } from '../../systems/geneticsSystem'
+import {
+  STAGE_COUNT, STAGE_NAMES, TIER_NAMES, getStageTier, getStageCost,
+  getAppearanceClickMult, getAppearancePassiveMult, getAppearanceCostFactor,
+} from '../../systems/appearanceSystem'
 import { formatNumber } from '../formatNumber'
 
 interface Props {
@@ -12,29 +14,47 @@ interface Props {
 const TIER_COLORS = ['#4a6fa5', '#27ae60', '#e74c3c', '#9b59b6', '#f39c12', '#c0392b']
 
 export function AppearanceTab({ state, dispatch }: Props) {
-  const costMult = state.genetics ? getGeneticsConfig(state.genetics).stageCostMult : 1
   const nextStage = state.appearanceStage + 1
   const isMaxed = nextStage >= STAGE_COUNT
-  const nextCost = isMaxed ? 0 : getStageCost(nextStage, costMult)
+  const nextCost = isMaxed ? 0 : getStageCost(nextStage, 1)
   const canAfford = !isMaxed && state.coins >= nextCost
-  const mult = Math.pow(1.15, state.appearanceStage).toFixed(2)
-  const nextMult = isMaxed ? '—' : Math.pow(1.15, nextStage).toFixed(2)
   const currentTier = getStageTier(state.appearanceStage)
+
+  const clickMult  = getAppearanceClickMult(state.appearanceStage).toFixed(2)
+  const passiveMult = getAppearancePassiveMult(state.appearanceStage).toFixed(2)
+  const discount = Math.round((1 - getAppearanceCostFactor(state.appearanceStage)) * 100)
+
+  const nextClickMult  = isMaxed ? '—' : getAppearanceClickMult(nextStage).toFixed(2)
+  const nextPassiveMult = isMaxed ? '—' : getAppearancePassiveMult(nextStage).toFixed(2)
+  const nextDiscount = isMaxed ? 0 : Math.round((1 - getAppearanceCostFactor(nextStage)) * 100)
 
   return (
     <div style={styles.container}>
       {/* Текущая стадия */}
       <div style={{ ...styles.currentCard, borderColor: TIER_COLORS[currentTier] + '88' }}>
         <div style={styles.currentLeft}>
-          <div style={{ color: TIER_COLORS[currentTier], fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ color: TIER_COLORS[currentTier], fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {TIER_NAMES[currentTier]}
           </div>
           <div style={styles.currentName}>{STAGE_NAMES[state.appearanceStage]}</div>
           <div style={styles.currentSub}>Стадия {state.appearanceStage + 1} / {STAGE_COUNT}</div>
         </div>
-        <div style={styles.currentMult}>
-          <div style={styles.multValue}>×{mult}</div>
-          <div style={styles.multLabel}>к клику</div>
+        <div style={styles.bonusList}>
+          <div style={styles.bonusRow}>
+            <span style={styles.bonusIcon}>👊</span>
+            <span style={styles.bonusLabel}>Клик</span>
+            <span style={styles.bonusVal}>×{clickMult}</span>
+          </div>
+          <div style={styles.bonusRow}>
+            <span style={styles.bonusIcon}>🧬</span>
+            <span style={styles.bonusLabel}>Пассив</span>
+            <span style={styles.bonusVal}>×{passiveMult}</span>
+          </div>
+          <div style={styles.bonusRow}>
+            <span style={styles.bonusIcon}>💰</span>
+            <span style={styles.bonusLabel}>Скидка</span>
+            <span style={styles.bonusVal}>{discount}%</span>
+          </div>
         </div>
       </div>
 
@@ -51,8 +71,10 @@ export function AppearanceTab({ state, dispatch }: Props) {
           disabled={!canAfford}
         >
           <div style={styles.upgradeBtnLeft}>
-            <div style={styles.upgradeBtnTitle}>↑ Прокачаться</div>
-            <div style={styles.upgradeBtnSub}>{STAGE_NAMES[nextStage]} · ×{nextMult} к клику</div>
+            <div style={styles.upgradeBtnTitle}>↑ {STAGE_NAMES[nextStage]}</div>
+            <div style={styles.upgradeBtnSub}>
+              👊×{nextClickMult} · 🧬×{nextPassiveMult} · 💰{nextDiscount}%
+            </div>
           </div>
           <div style={{ color: canAfford ? '#FFD700' : '#666', fontWeight: 800, fontSize: '0.95rem' }}>
             {formatNumber(nextCost)}
@@ -72,7 +94,7 @@ export function AppearanceTab({ state, dispatch }: Props) {
           const isOwned = i <= state.appearanceStage
           const isCurrent = i === state.appearanceStage
           const tier = getStageTier(i)
-          const cost = getStageCost(i, costMult)
+          const cost = getStageCost(i, 1)
           return (
             <div
               key={i}
@@ -85,16 +107,16 @@ export function AppearanceTab({ state, dispatch }: Props) {
             >
               <div style={styles.stageRowNum}>{i + 1}</div>
               <div style={styles.stageRowInfo}>
-                <span style={{ color: isOwned ? '#ccc' : '#666', fontSize: '0.82rem' }}>
+                <span style={{ color: isOwned ? '#ccc' : '#666', fontSize: '0.8rem' }}>
                   {STAGE_NAMES[i]}
                 </span>
                 {i % 5 === 0 && i > 0 && (
-                  <span style={{ color: TIER_COLORS[tier], fontSize: '0.65rem', marginLeft: 6 }}>
+                  <span style={{ color: TIER_COLORS[tier], fontSize: '0.62rem', marginLeft: 6 }}>
                     [{TIER_NAMES[tier]}]
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '0.72rem', color: isOwned ? '#6fcf6f' : '#555', flexShrink: 0 }}>
+              <div style={{ fontSize: '0.7rem', color: isOwned ? '#6fcf6f' : '#555', flexShrink: 0 }}>
                 {isOwned ? '✓' : i === 0 ? '—' : formatNumber(cost)}
               </div>
             </div>
@@ -122,34 +144,37 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #333',
     borderRadius: 14,
     padding: '14px 16px',
+    gap: 12,
   },
   currentLeft: {
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
+    flex: 1,
   },
   currentName: {
     color: '#fff',
     fontWeight: 700,
-    fontSize: '1rem',
+    fontSize: '0.95rem',
   },
   currentSub: {
     color: '#666',
-    fontSize: '0.75rem',
+    fontSize: '0.72rem',
   },
-  currentMult: {
-    textAlign: 'right',
+  bonusList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    flexShrink: 0,
   },
-  multValue: {
-    color: '#FFD700',
-    fontSize: '1.4rem',
-    fontWeight: 800,
-    fontVariantNumeric: 'tabular-nums',
+  bonusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
   },
-  multLabel: {
-    color: '#888',
-    fontSize: '0.7rem',
-  },
+  bonusIcon: { fontSize: '0.8rem' },
+  bonusLabel: { color: '#888', fontSize: '0.68rem', width: 38 },
+  bonusVal: { color: '#FFD700', fontWeight: 700, fontSize: '0.78rem', fontVariantNumeric: 'tabular-nums' },
   upgradeBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -167,16 +192,16 @@ const styles: Record<string, React.CSSProperties> = {
   upgradeBtnLeft: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 3,
+    gap: 4,
   },
   upgradeBtnTitle: {
     color: '#eee',
     fontWeight: 700,
-    fontSize: '0.9rem',
+    fontSize: '0.88rem',
   },
   upgradeBtnSub: {
     color: '#888',
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
   },
   maxed: {
     textAlign: 'center',
@@ -200,13 +225,12 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    padding: '6px 10px',
-    borderRadius: 0,
+    padding: '5px 10px',
     transition: 'background 0.2s',
   },
   stageRowNum: {
     color: '#555',
-    fontSize: '0.7rem',
+    fontSize: '0.68rem',
     width: 20,
     flexShrink: 0,
     textAlign: 'right',

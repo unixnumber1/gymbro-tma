@@ -1,61 +1,36 @@
-// ── Genetics System ────────────────────────────────────────
+// ── Genetics System v2 — случайные параметры при каждом престиже ──────────
 
-export type GeneticsType = 'hardgainer' | 'normal' | 'freak'
-
-export interface GeneticsConfig {
-  type: GeneticsType
-  label: string
-  emoji: string
-  description: string
-  // Множители (1.0 = без изменений)
-  stageCostMult: number        // стоимость стадий внешки
-  autoClickerCostMult: number  // стоимость автокликеров
-  clickMult: number            // доход с ручного клика
-  autoIncMult: number          // пассивный доход
+export interface GeneticsStats {
+  clickMult: number       // 0.5 – 2.0 × к монетам за клик
+  passiveMult: number     // 0.5 – 2.0 × к пассивному доходу
+  upgradeDiscount: number // 0.5 – 2.0 (2.0 = вдвое дешевле апгрейды)
 }
 
-export const GENETICS_CONFIGS: Record<GeneticsType, GeneticsConfig> = {
-  hardgainer: {
-    type: 'hardgainer',
-    label: 'Хардгейнер',
-    emoji: '🧬',
-    description: 'Апгрейды дешевле, но ручной клик слабее. Идеал для пассивной игры.',
-    stageCostMult: 0.75,
-    autoClickerCostMult: 0.75,
-    clickMult: 0.85,
-    autoIncMult: 1.0,
-  },
-  normal: {
-    type: 'normal',
-    label: 'Нормальный',
-    emoji: '⚖️',
-    description: 'Сбалансированный профиль. Никаких бонусов и штрафов.',
-    stageCostMult: 1.0,
-    autoClickerCostMult: 1.0,
-    clickMult: 1.0,
-    autoIncMult: 1.0,
-  },
-  freak: {
-    type: 'freak',
-    label: 'Фрик природы',
-    emoji: '💀',
-    description: 'Всё дороже, но ручной клик убийственный. Для активных игроков.',
-    stageCostMult: 1.30,
-    autoClickerCostMult: 1.30,
-    clickMult: 1.50,
-    autoIncMult: 0.90,
-  },
+function randStat(): number {
+  // Равномерно в диапазоне 0.5–2.0, шаг 0.1
+  return Math.round((0.5 + Math.random() * 1.5) * 10) / 10
 }
 
-export function getGeneticsConfig(type: GeneticsType): GeneticsConfig {
-  return GENETICS_CONFIGS[type]
+export function rollGenetics(): GeneticsStats {
+  return {
+    clickMult: randStat(),
+    passiveMult: randStat(),
+    upgradeDiscount: randStat(),
+  }
 }
 
-// Случайный тип при первом запуске
-// Веса: hardgainer 30%, normal 40%, freak 30%
-export function rollGenetics(): GeneticsType {
-  const r = Math.random()
-  if (r < 0.30) return 'hardgainer'
-  if (r < 0.70) return 'normal'
-  return 'freak'
+export function getGeneticsLabel(g: GeneticsStats): string {
+  const { clickMult, passiveMult, upgradeDiscount } = g
+  if (clickMult >= 1.7 && passiveMult >= 1.7) return '🔥 Мутант'
+  if (clickMult >= 1.7) return '💪 Боец природы'
+  if (passiveMult >= 1.7) return '🧬 Пассивный геном'
+  if (upgradeDiscount >= 1.7) return '💰 Умный инвестор'
+  if (clickMult <= 0.7 && passiveMult <= 0.7) return '😢 Хардгейнер'
+  return '⚖️ Сбалансированный'
+}
+
+// upgradeDiscount > 1 → апгрейды дешевле, < 1 → дороже
+// cost × (1 / upgradeDiscount), min 0.25
+export function getUpgradeCostFactor(g: GeneticsStats): number {
+  return Math.max(0.25, 1 / g.upgradeDiscount)
 }

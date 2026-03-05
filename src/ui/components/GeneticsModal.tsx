@@ -1,90 +1,78 @@
-import { useState } from 'react'
-import { GeneticsType, GENETICS_CONFIGS, rollGenetics } from '../../systems/geneticsSystem'
+import { useEffect, useState } from 'react'
+import { GeneticsStats, rollGenetics, getGeneticsLabel } from '../../systems/geneticsSystem'
 
 interface Props {
-  onSelect: (type: GeneticsType) => void
+  onConfirm: (g: GeneticsStats) => void
 }
 
-// Первый запуск — персонажу "выпадает" генетика
-export function GeneticsModal({ onSelect }: Props) {
-  const [revealed, setRevealed] = useState<GeneticsType | null>(null)
-  const [isRevealing, setIsRevealing] = useState(false)
+function StatBar({ label, value }: { label: string; value: number }) {
+  const pct = ((value - 0.5) / 1.5) * 100
+  const color = value >= 1.3 ? '#6fcf6f' : value <= 0.8 ? '#e88' : '#FFD700'
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+        <span style={{ color: '#aaa', fontSize: '0.78rem' }}>{label}</span>
+        <span style={{ color, fontWeight: 700, fontSize: '0.78rem', fontVariantNumeric: 'tabular-nums' }}>
+          ×{value.toFixed(1)}
+        </span>
+      </div>
+      <div style={{ height: 6, background: '#1a1a2e', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%',
+          width: `${pct}%`,
+          background: color,
+          borderRadius: 3,
+          transition: 'width 0.06s linear, background 0.06s linear',
+        }} />
+      </div>
+    </div>
+  )
+}
 
-  function handleReveal() {
-    setIsRevealing(true)
-    // Имитация "розыгрыша" — мелькание типов перед финальным результатом
+export function GeneticsModal({ onConfirm }: Props) {
+  const [display, setDisplay] = useState<GeneticsStats>({ clickMult: 1.0, passiveMult: 1.0, upgradeDiscount: 1.0 })
+  const [rolled, setRolled] = useState<GeneticsStats | null>(null)
+  const [spinning, setSpinning] = useState(true)
+
+  useEffect(() => {
     let count = 0
-    const types: GeneticsType[] = ['hardgainer', 'normal', 'freak']
     const interval = setInterval(() => {
-      setRevealed(types[count % 3])
+      setDisplay(rollGenetics())
       count++
-      if (count >= 12) {
+      if (count >= 15) {
         clearInterval(interval)
         const result = rollGenetics()
-        setRevealed(result)
-        setIsRevealing(false)
+        setDisplay(result)
+        setRolled(result)
+        setSpinning(false)
       }
     }, 80)
-  }
-
-  const cfg = revealed ? GENETICS_CONFIGS[revealed] : null
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.title}>🧬 Анализ ДНК</div>
-        <div style={styles.subtitle}>
-          Твоя генетика определяет стиль прокачки
+        <div style={styles.subtitle}>Твоя генетика определяет стиль прокачки</div>
+
+        <div style={styles.statsBox}>
+          <StatBar label="Монеты за клик" value={display.clickMult} />
+          <StatBar label="Пассивный доход" value={display.passiveMult} />
+          <StatBar label="Скидка на апгрейды" value={display.upgradeDiscount} />
         </div>
 
-        {/* Карточки типов */}
-        <div style={styles.cards}>
-          {(Object.values(GENETICS_CONFIGS) as typeof GENETICS_CONFIGS[GeneticsType][]).map(g => (
-            <div
-              key={g.type}
-              style={{
-                ...styles.card,
-                borderColor: revealed === g.type ? '#FFD700' : '#1a1a2e',
-                background: revealed === g.type ? '#1e1a08' : '#1a1a2e',
-                transform: revealed === g.type ? 'scale(1.05)' : 'scale(1)',
-              }}
-            >
-              <div style={styles.cardEmoji}>{g.emoji}</div>
-              <div style={styles.cardLabel}>{g.label}</div>
-              <div style={styles.cardDesc}>{g.description}</div>
-              <div style={styles.cardStats}>
-                <span style={{ color: g.clickMult >= 1 ? '#6fcf6f' : '#e88' }}>
-                  Клик ×{g.clickMult.toFixed(2)}
-                </span>
-                <span style={{ color: g.stageCostMult <= 1 ? '#6fcf6f' : '#e88' }}>
-                  Цена ×{g.stageCostMult.toFixed(2)}
-                </span>
-              </div>
+        {spinning && <div style={styles.spinning}>Анализируем ДНК...</div>}
+
+        {rolled && !spinning && (
+          <>
+            <div style={styles.result}>
+              Генетика: <b style={{ color: '#FFD700' }}>{getGeneticsLabel(rolled)}</b>
             </div>
-          ))}
-        </div>
-
-        {/* Кнопка розыгрыша */}
-        {!revealed && !isRevealing && (
-          <button style={styles.rollBtn} onClick={handleReveal}>
-            🎲 Узнать свою генетику
-          </button>
-        )}
-
-        {isRevealing && (
-          <div style={styles.revealing}>Анализируем ДНК...</div>
-        )}
-
-        {/* Подтверждение */}
-        {revealed && !isRevealing && cfg && (
-          <div style={styles.result}>
-            <div style={styles.resultText}>
-              Ты — <b style={{ color: '#FFD700' }}>{cfg.emoji} {cfg.label}</b>
-            </div>
-            <button style={styles.confirmBtn} onClick={() => onSelect(revealed)}>
+            <button style={styles.confirmBtn} onClick={() => onConfirm(rolled)}>
               Начать качаться!
             </button>
-          </div>
+          </>
         )}
       </div>
     </div>
@@ -95,12 +83,12 @@ const styles: Record<string, React.CSSProperties> = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0,0,0,0.85)',
+    background: 'rgba(0,0,0,0.88)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
-    padding: 16,
+    padding: 20,
   },
   modal: {
     background: '#0f0f1a',
@@ -108,7 +96,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     padding: '24px 20px',
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 380,
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
@@ -124,74 +112,23 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.85rem',
     textAlign: 'center',
   },
-  cards: {
-    display: 'flex',
-    gap: 8,
-  },
-  card: {
-    flex: 1,
-    border: '2px solid #1a1a2e',
+  statsBox: {
+    background: '#0a0a18',
     borderRadius: 12,
-    padding: '10px 8px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    alignItems: 'center',
-    transition: 'all 0.15s ease',
+    padding: '14px 16px',
   },
-  cardEmoji: {
-    fontSize: '1.6rem',
-    lineHeight: 1,
-  },
-  cardLabel: {
-    color: '#eee',
-    fontWeight: 700,
-    fontSize: '0.75rem',
-    textAlign: 'center',
-  },
-  cardDesc: {
-    color: '#888',
-    fontSize: '0.65rem',
-    textAlign: 'center',
-    lineHeight: 1.3,
-  },
-  cardStats: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-    fontSize: '0.7rem',
-    marginTop: 4,
-  },
-  rollBtn: {
-    padding: '14px',
-    background: 'linear-gradient(135deg, #0f3460, #1a1a6e)',
-    border: '1px solid #2255aa',
-    borderRadius: 12,
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '1rem',
-    cursor: 'pointer',
-  },
-  revealing: {
+  spinning: {
     textAlign: 'center',
     color: '#aaa',
     fontSize: '0.9rem',
-    padding: '8px 0',
+    animation: 'breathe 0.8s ease-in-out infinite',
   },
   result: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: '1rem',
-    color: '#eee',
     textAlign: 'center',
+    color: '#eee',
+    fontSize: '0.95rem',
   },
   confirmBtn: {
-    width: '100%',
     padding: '14px',
     background: 'linear-gradient(135deg, #2d6a00, #4a9900)',
     border: '1px solid #6fcf6f',
@@ -200,5 +137,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     fontSize: '1rem',
     cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
   },
 }

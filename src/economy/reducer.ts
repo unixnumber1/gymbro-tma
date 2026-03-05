@@ -1,5 +1,5 @@
 import { GameState, createInitialState } from '../core/GameState'
-import { GeneticsType, getGeneticsConfig } from '../systems/geneticsSystem'
+import { GeneticsStats, rollGenetics } from '../systems/geneticsSystem'
 import { getStageCost, STAGE_COUNT } from '../systems/appearanceSystem'
 import { calcClickIncome } from './ClickEngine'
 import { calcAutoClickerPrice, calcTotalCoinsPerSecond } from './AutoClickEngine'
@@ -11,7 +11,14 @@ import {
   PUMP_DECAY_PER_TICK,
   PUMP_MAX_CPS,
 } from '../systems/pumpSystem'
-import { TICK_INTERVAL_MS } from '../config/gameConfig'
+import {
+  TICK_INTERVAL_MS,
+  GOALS_BONUS_PER_GOAL,
+  EVENT_MIN_INTERVAL_MS,
+  EVENT_EXTRA_RANGE_MS,
+  BOOST_DURATION_MS,
+} from '../config/gameConfig'
+import { GOALS } from '../systems/goalsSystem'
 
 // ── Action types ──────────────────────────────────────────
 
@@ -22,13 +29,17 @@ export type GameAction =
   | { type: 'BUY_APPEARANCE' }
   | { type: 'PRESTIGE' }
   | { type: 'ADD_OFFLINE_COINS'; coins: number }
-  | { type: 'SET_GENETICS'; genetics: GeneticsType }
+  | { type: 'SET_GENETICS'; genetics: GeneticsStats }
   | { type: 'LOAD_SAVE'; state: GameState }
 
 // ── Helpers ───────────────────────────────────────────────
 
+function goalsMult(state: GameState): number {
+  return 1 + state.completedGoals.length * GOALS_BONUS_PER_GOAL
+}
+
 function recalcDerived(state: GameState): GameState {
-  const geneticsCfg = state.genetics ? getGeneticsConfig(state.genetics) : null
+  const gm = goalsMult(state)
   return {
     ...state,
     currentClickIncome: calcClickIncome(
@@ -36,12 +47,23 @@ function recalcDerived(state: GameState): GameState {
       state.prestigePoints,
       state.pumpActive,
       state.genetics,
+      gm,
     ),
     coinsPerSecond: calcTotalCoinsPerSecond(
       state.autoClickers,
-      geneticsCfg?.autoIncMult ?? 1,
+      state.genetics,
+      state.appearanceStage,
+      gm,
     ),
   }
+}
+
+function checkGoals(state: GameState): GameState {
+  const newGoals = GOALS
+    .filter(g => !state.completedGoals.includes(g.id) && g.check(state))
+    .map(g => g.id)
+  if (newGoals.length === 0) return state
+  return recalcDerived({ ...state, completedGoals: [...state.completedGoals, ...newGoals] })
 }
 
 // ── Reducer ───────────────────────────────────────────────
@@ -50,7 +72,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
 
     case 'CLICK': {
-      const earned = state.currentClickIncome
+      // Буст ×2 к клику применяется здесь
+      const boostMult = (state.activeBoost && Date.now() < state.activeBoost.endTime) ? 2 : 1
+      const earned = state.currentClickIncome * boostMult
       return {
         ...state,
         coins: state.coins + earned,
@@ -69,30 +93,39 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // ── Pump logic ────────────────────────────────────────
       let { pumpMeter, pumpActive, pumpEndTime, pumpCooldownEndTime, pendingClicks } = state
-      let pumpChanged = false
+      let needsRecalc = false
 
       if (pumpActive) {
         if (now >= pumpEndTime) {
-          // Pump закончился
           pumpActive = false
           pumpMeter = 0
           pumpCooldownEndTime = now + PUMP_COOLDOWN_MS
-          pumpChanged = true
+          needsRecalc = true
         }
-        // Пока pump активен — счётчик не трогаем
       } else if (now >= pumpCooldownEndTime) {
-        // Обычный режим: обновляем шкалу
         const estimatedCps = Math.min(pendingClicks * (1000 / TICK_INTERVAL_MS), PUMP_MAX_CPS)
         const gain = estimatedCps * PUMP_GAIN_PER_CPS * tickSec
         const decay = pendingClicks === 0 && pumpMeter > 0 ? PUMP_DECAY_PER_TICK : 0
         pumpMeter = Math.max(0, Math.min(1, pumpMeter + gain - decay))
-
         if (pumpMeter >= 1.0) {
           pumpActive = true
           pumpMeter = 1.0
           pumpEndTime = now + PUMP_DURATION_MS
-          pumpChanged = true
+          needsRecalc = true
         }
+      }
+
+      // ── Случайные события ─────────────────────────────────
+      let { activeBoost, nextEventTime } = state
+      if (now >= nextEventTime && !activeBoost) {
+        activeBoost = { type: 'x2click', endTime: now + BOOST_DURATION_MS }
+        nextEventTime = now + EVENT_MIN_INTERVAL_MS + Math.random() * EVENT_EXTRA_RANGE_MS
+        needsRecalc = true
+      }
+      // Буст истёк
+      if (activeBoost && now >= activeBoost.endTime) {
+        activeBoost = null
+        needsRecalc = true
       }
 
       const next: GameState = {
@@ -105,52 +138,58 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         pumpEndTime,
         pumpCooldownEndTime,
         pendingClicks: 0,
+        activeBoost,
+        nextEventTime,
       }
 
-      // Пересчитываем currentClickIncome только когда pump включился/выключился
-      return pumpChanged ? recalcDerived(next) : next
+      const withGoals = checkGoals(next)
+      const goalsChanged = withGoals.completedGoals.length !== state.completedGoals.length
+
+      if (needsRecalc || goalsChanged) return recalcDerived(withGoals)
+      return withGoals
     }
 
     case 'BUY_AUTO_CLICKER': {
       const ac = state.autoClickers.find(a => a.id === action.id)
       if (!ac) return state
-      const costMult = state.genetics ? getGeneticsConfig(state.genetics).autoClickerCostMult : 1
-      const price = calcAutoClickerPrice(action.id, ac.owned, costMult)
+      const price = calcAutoClickerPrice(action.id, ac.owned, state.genetics, state.appearanceStage)
       if (state.coins < price) return state
 
-      return recalcDerived({
+      return checkGoals(recalcDerived({
         ...state,
         coins: state.coins - price,
         autoClickers: state.autoClickers.map(a =>
           a.id === action.id ? { ...a, owned: a.owned + 1 } : a,
         ),
-      })
+      }))
     }
 
     case 'BUY_APPEARANCE': {
       const nextStage = state.appearanceStage + 1
       if (nextStage >= STAGE_COUNT) return state
-      const costMult = state.genetics ? getGeneticsConfig(state.genetics).stageCostMult : 1
-      const price = getStageCost(nextStage, costMult)
+      const price = getStageCost(nextStage, 1)  // appearance discount handled inside getStageCost via appearanceCostFactor
       if (state.coins < price) return state
 
-      return recalcDerived({
+      return checkGoals(recalcDerived({
         ...state,
         coins: state.coins - price,
         appearanceStage: nextStage,
-      })
+      }))
     }
 
     case 'PRESTIGE': {
       const gained = calcPrestigePointsGain(state.totalCoinsEarned)
+      const newGenetics = rollGenetics()
       const fresh = createInitialState()
       return recalcDerived({
         ...fresh,
-        genetics: state.genetics,
+        genetics: newGenetics,
         prestigePoints: state.prestigePoints + gained,
         totalPrestiges: state.totalPrestiges + 1,
         totalClicks: state.totalClicks,
         totalPlayTime: state.totalPlayTime,
+        completedGoals: state.completedGoals,
+        nextEventTime: state.nextEventTime,
       })
     }
 
