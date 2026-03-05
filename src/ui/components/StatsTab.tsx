@@ -207,9 +207,8 @@ export function StatsTab({ state }: Props) {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     padding: '10px 14px',
-    overflowY: 'scroll',
-    WebkitOverflowScrolling: 'touch',
-    height: 'calc(100vh - 120px)',
+    overflowY: 'auto',
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
