@@ -136,20 +136,22 @@ export default function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // ── При престиже — сразу отправляем в лидерборд ──────────
+  // ── При престиже — немедленный сейв + лидерборд ─────────
   const prevPrestigesRef = useRef(state.totalPrestiges)
   useEffect(() => {
     if (state.totalPrestiges > prevPrestigesRef.current) {
+      saveImmediate(stateRef.current)
       upsertScore(state.totalCoinsEarned, state.totalPrestiges)
     }
     prevPrestigesRef.current = state.totalPrestiges
   }, [state.totalPrestiges, state.totalCoinsEarned])
 
-  // ── Детект смены стадии → StageUp modal ─────────────────
+  // ── Детект смены стадии → StageUp modal + немедленный сейв ─
   useEffect(() => {
     if (state.appearanceStage > prevStageRef.current) {
       setStageUpEvent(state.appearanceStage)
       TelegramSDK.hapticSuccess()
+      saveImmediate(stateRef.current)
     }
     prevStageRef.current = state.appearanceStage
   }, [state.appearanceStage])
